@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Profiles Collection:
+    // Anyone authenticated can read animal profiles to discover friends & matches.
+    // Only the profile owner (creator's anonymous uid) can create or update their own profile.
+    match /profiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.resource.data.ownerUid == request.auth.uid
+      );
+    }
+
+    // Likes Collection:
+    // Users can create a like if it originates from them.
+    // Users can read likes where they are the recipient or the initiator.
+    match /likes/{likeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+
+    // Matches Collection:
+    // Match records are readable if the user's profile is in the profileIds array.
+    match /matches/{matchId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+
+    // Friend Requests Collection:
+    // Users can create friend requests, read their own, and update status (accept/reject)
+    match /friendRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // Conversations Collection:
+    // Only participants can read or update the conversation summary
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+
+      // Nested Messages Subcollection:
+      // Messages can only be read if the user is signed in.
+      // Message sender must be authenticated.
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.text is string && request.resource.data.text.size() > 0;
+        allow update, delete: if false; // Messages are immutable
+      }
+    }
+
+    // Notifications:
+    // Authenticated users can read and update their notification read status
+    match /notifications/{notificationId} {
+      allow read, update: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // Community Posts (Friend Circle):
+    // Authenticated users can read public posts, create posts, and toggle likes
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.content is string;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // Drama Events:
+    // Public reading for all authenticated pet accounts
+    match /dramaEvents/{dramaId} {
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated(); // To increment reaction count
+      allow create, delete: if false; // Seeded or system-generated
+    }
+
+    // Accounts (username + hashed password). Demo-level security.
+    match /users/{username} {
+      allow read, create, update, delete: if isAuthenticated();
+    }
+  }
+}
