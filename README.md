@@ -1,4 +1,4 @@
-# Ruff Luck: Matches That Never Work
+# Paw-love: Matches That Never Work
 MAD Hacks 2026, Useless Software theme.
 
 A pet dating app where every match comes with a Doom-o-meter, a compatibility report and an official breakup certificate.
